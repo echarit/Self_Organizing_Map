@@ -5,7 +5,7 @@ from scipy.io import loadmat
 
 def read_data():
     """
-    A function tailored to read the specific mnist dataset
+    A function tailored to read the specific mnist dataset.
 
     ----------
 
@@ -18,25 +18,26 @@ def read_data():
             A list of size k where k is the number of classes the dataset has.
             The list contains k tuples (a, b) where a and b are indexes where the k-th class samples
             start end end respectively in the data matrix.
-            See sort_dataset() to see how pointers is created
+            See sort_dataset() to see how pointers is created.
         num_of_classes
-            The number of classes the dataset has
+            The number of classes the dataset has.
     """
     path = 'mnist-original.mat'
     print('Reading', path)
 
-    dictonary = loadmat(path)
-    data = dictonary['data']
-    data_labels = dictonary['label']
+    dictionary = loadmat(path)
+    data = dictionary['data']
+    data_labels = dictionary['label']
 
     data = data.T
-    data = data / 256
+    data = data / 255
 
     data_labels = np.asarray(data_labels, dtype='int32')
     data_labels = np.squeeze(data_labels)
 
+    indexes = None
     data, data_labels, indexes = sort_dataset(data, data_labels)
-    #data, data_labels = shuffle_data(data, data_labels)
+    # data, data_labels = shuffle_data(data, data_labels)
     number_of_classes = int(np.amax(data_labels)) + 1
     return data, data_labels, indexes, number_of_classes
 
@@ -63,7 +64,6 @@ def sort_dataset(dataset, labels):
             The list contains k tuples (a, b) where a and b are indexes where the k-th class samples
             start end end respectively in the data matrix.
     """
-
     classes = int(np.amax(labels)) + 1
     data_dimension = dataset.shape[1]
     numel = dataset.shape[0]
@@ -101,7 +101,7 @@ def sort_dataset(dataset, labels):
 
 def shuffle_data(data, labels):
     """
-    Shuffles the dataset
+    Shuffles the dataset.
 
     ----------
 
@@ -130,9 +130,9 @@ def plot_sample(sample):
     ----------
 
     :param sample:
-        An 1D sample for plotting. It's length should be a perfect square (ex. 784 = 28*28)
+        An 1D sample for plotting. It's length should be a perfect square (ex. 784 = 28*28).
 
-    :return: Nothing
+    :return: Nothing.
     """
     dim = int(np.sqrt(sample.shape))
     sample = sample.reshape((dim, dim))

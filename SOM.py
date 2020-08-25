@@ -12,7 +12,7 @@ class SOM:
     Specifically Kohonen's variation.
     """
     def __init__(self, data_set):
-        """The class'es constructor"""
+        """The class'es constructor."""
         # The map's shape.
         # First two argumments define dimensionality.
         # If 1D map is needed provide a single number else provide 2 numbers
@@ -23,7 +23,7 @@ class SOM:
         # The map's initialization method.
         # 'sampling': Draws random instances from the data to initialize the map
         # 'random': Initializes the map with random noise
-        self.init_method = 'sampling'
+        self.init_method = 'random'
         # An ad-hoc argument to "extend" the neighbourhood function.
         # 'simple_chain' means that topologically only the upper, lower, right and left
         #   neighbour of the winning neuron will receive updates regardless
@@ -38,12 +38,12 @@ class SOM:
         # The maps's rank (1D or 2D)
         self.grid_rank = len(self.grid_shape) - 1
         # The learning rate
-        self.alpha = 0.05
+        self.alpha = 0.01
         # The number of epochs the network is gonna be trained into
-        self.epochs = 200
+        self.epochs = 100
         # The radius of the Gaussian neighbourhood function
         if self.similarity == 'Gaussian':
-            self.sigma = int(data_set.shape[1] / 8)
+            self.sigma = int(data_set.shape[1] / 10)
 
         self.initialize_grid(data_set)
 
@@ -57,10 +57,13 @@ class SOM:
 
             :param data_set:
                 An m x n numpy array where m is the number of images and n the dimensionality of the data.
-            :return: Nothing
+            :return: Nothing.
         """
         if self.init_method == 'random':
-            self.grid = rng.uniform(0.0, 1.0, self.grid_shape)
+            print("Calculating mean vector and covariance matrix of the data. Please wait...")
+            mean_vector = np.mean(data_set, axis=0)
+            covariance_matrix = 0.001 * np.eye(self.grid_shape[-1])
+            self.grid = np.random.multivariate_normal(mean_vector, covariance_matrix, self.grid_shape[:-1])
         elif self.init_method == 'sampling':
             if self.grid_rank == 1:  # 1D Grid
                 for i in range(0, self.grid_shape[0], 1):
@@ -82,13 +85,13 @@ class SOM:
     def load_map(self, path):
         """
         Loads a pre-trained model. Stops execution if invalid path was provided
-        or the loaded map's shape is not the same as the one defined in the constructor
+        or the loaded map's shape is not the same as the one defined in the constructor.
 
         ----------
 
         :param path:
             A string containing the path of the pre-trained map.
-        :return: Nothing
+        :return: Nothing.
         """
         loaded_map = np.load(path)
         if self.grid.shape != loaded_map.shape:
@@ -101,12 +104,12 @@ class SOM:
     def find_winner_neuron(self, sample):
         """
         Given a data instance, determines which neuron "wins" the sample
-        and returns it's position within the map
+        and returns it's position within the map.
 
         ----------
 
-        :param sample: An 1D array containing a single data sample
-        :return: winner_neuron - A tuple containing the coordinates of the winning neuron
+        :param sample: An 1D array containing a single data sample.
+        :return: winner_neuron - A tuple containing the coordinates of the winning neuron.
         """
         if self.grid_rank == 1:  # 1D Grid
             distances = np.zeros((self.grid_shape[0],), dtype='float32')
@@ -133,6 +136,7 @@ class SOM:
                     if distances[i, j] < min_distance:
                         winner = (i, j)
                         min_distance = distances[winner]
+
         else:
             print("Higher dimension grid than 2 is not implemented")
             winner = None
@@ -143,7 +147,7 @@ class SOM:
     def neighbour_function(winner_neuron, current_neuron):
         """
         Defines the neighbour function.
-        In other words how much of a neighbour is one neuron with another
+        In other words how much of a neighbour is one neuron with another.
 
         ----------
 
@@ -160,14 +164,14 @@ class SOM:
     @staticmethod
     def neighbourhood_function(neighbour_value, sigma):
         """
-        Defines The Gaussian Neighbourhood Function. See SOM bibliography for more
+        Defines The Gaussian Neighbourhood Function. See SOM bibliography for more.
 
         ----------
 
         :param neighbour_value: The similarity measure between two neurons.
             See neighbour_function() for more.
-        :param sigma: The sigma of the Gaussian similarity as defined in the constructor
-        :return: The neighbourhood function's value for two neurons
+        :param sigma: The sigma of the Gaussian similarity as defined in the constructor.
+        :return: The neighbourhood function's value for two neurons.
         """
         return np.exp(-neighbour_value/(2 * sigma * sigma))
 
@@ -175,30 +179,30 @@ class SOM:
         """
         Decaying the learning rate in conjunction with
         the current epoch and the total number of epochs.
-        See SOM bibliography for more
+        See SOM bibliography for more.
 
         ----------
 
-        :param n: The current epoch (also known as discrete time)
-        :return: The a_n as decayed by time/epoch
+        :param n: The current epoch (also known as discrete time).
+        :return: The a_n as decayed by time/epoch.
         """
         # Arbitrarily chosen constant
-        constant = 10000
+        constant = 100
         return self.alpha * np.exp(- 2 * n / constant)
 
     def sigma_decay(self, n):
         """
         Decaying the sigma of the neighbourhood function
         in conjunction with the current epoch and the total number of epochs.
-        See SOM bibliography for more
+        See SOM bibliography for more.
 
         ----------
 
-        :param n: The current epoch (also known as discrete time)
-        :return: The s_n as decayed by time/epoch
+        :param n: The current epoch (also known as discrete time).
+        :return: The s_n as decayed by time/epoch.
         """
         # Arbitrarily chosen constant
-        constant = 10000
+        constant = 100
         return self.sigma * np.exp(-n * np.log(self.sigma) / constant)
 
     def feed_sample(self, sample, alpha, sigma):
@@ -208,10 +212,10 @@ class SOM:
 
         ----------
 
-        :param sample: The 1D sample provided to the map
-        :param alpha: The learning rate
-        :param sigma: The radius of the Gaussian similarity
-        :return: Nothing
+        :param sample: The 1D sample provided to the map.
+        :param alpha: The learning rate.
+        :param sigma: The radius of the Gaussian similarity.
+        :return: Nothing.
         """
         winner = self.find_winner_neuron(sample)
         if self.grid_mode == 'full_chain':
@@ -273,12 +277,13 @@ class SOM:
     def train(self, training_set):
         """
         Trains the map iterating over the dataset for each epoch.
-
+        Plots the Self-Organizing Map one time before training
+        and one time after training.
         ----------
 
         :param training_set: An m x n numpy array where
             m is the number of images and n dimensionality of the data.
-        :return: Nothing
+        :return: Nothing.
         """
         self.plot_grid()
         print('\nStarted Training Map! Please Wait...')
@@ -297,12 +302,12 @@ class SOM:
         Plots a Grid To The Screen (1D or 2D).
         If the function is called by the test function it highlights
         the neuron that "won" the test sample. In that case a tuple
-        with the winning neuron's coordinates is passed to the function as argument
+        with the winning neuron's coordinates is passed to the function as argument.
 
         ----------
 
-        :param args: A tuple containing the coordinates of the winning neuron
-        :return: Nothing
+        :param args: A tuple containing the coordinates of the winning neuron.
+        :return: Nothing.
         """
         if self.grid_rank == 1:  # 1D Grid
             counter = 1
@@ -333,12 +338,12 @@ class SOM:
 
     def test(self, dataset):
         """
-        Throws a random sample to the map and highlights the neuron that "caught" it
+        Throws a random sample to the map and highlights the neuron that "caught" it.
 
         ----------
 
-        :param dataset: The dataset from which the test sample will be randomly selected
-        :return: Nothing
+        :param dataset: The dataset from which the test sample will be randomly selected.
+        :return: Nothing.
         """
         random_index = random.randrange(0, dataset.shape[0])
         winner_neuron = self.find_winner_neuron(dataset[random_index, :])
@@ -351,6 +356,6 @@ class SOM:
         ----------
 
         :param class_name: A string containing the name that the map will be saved as.
-        :return: Nothing
+        :return: Nothing.
         """
         np.save(class_name, self.grid)
