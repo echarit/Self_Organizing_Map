@@ -40,7 +40,7 @@ class SOM:
         # The learning rate
         self.alpha = 0.01
         # The number of epochs the network is gonna be trained into
-        self.epochs = 100
+        self.epochs = 1
         # The radius of the Gaussian neighbourhood function
         if self.similarity == 'Gaussian':
             self.sigma = int(data_set.shape[1] / 10)
@@ -60,7 +60,6 @@ class SOM:
             :return: Nothing.
         """
         if self.init_method == 'random':
-            print("Calculating mean vector and covariance matrix of the data. Please wait...")
             mean_vector = np.mean(data_set, axis=0)
             covariance_matrix = 0.001 * np.eye(self.grid_shape[-1])
             self.grid = np.random.multivariate_normal(mean_vector, covariance_matrix, self.grid_shape[:-1])
@@ -81,25 +80,6 @@ class SOM:
         else:
             print('Invalid Initialization Method. Please Check Argument "init" in architecture list')
             sys.exit(-1)
-
-    def load_map(self, path):
-        """
-        Loads a pre-trained model. Stops execution if invalid path was provided
-        or the loaded map's shape is not the same as the one defined in the constructor.
-
-        ----------
-
-        :param path:
-            A string containing the path of the pre-trained map.
-        :return: Nothing.
-        """
-        loaded_map = np.load(path)
-        if self.grid.shape != loaded_map.shape:
-            print('Error: Input map dimensionality is:', loaded_map.shape)
-            print('The shape defined in the constructor is:', self.grid.shape)
-            sys.exit(-1)
-        else:
-            self.grid = loaded_map
 
     def find_winner_neuron(self, sample):
         """
@@ -292,45 +272,6 @@ class SOM:
         stop = time.clock()
         print('Testing Time:', (stop - start) / 60, 'minutes')
 
-    def plot_grid(self, *args):
-        """
-        Plots a Grid To The Screen (1D or 2D).
-        If the function is called by the test function it highlights
-        the neuron that "won" the test sample. In that case a tuple
-        with the winning neuron's coordinates is passed to the function as argument.
-
-        ----------
-
-        :param args: A tuple containing the coordinates of the winning neuron.
-        :return: Nothing.
-        """
-        if self.grid_rank == 1:  # 1D Grid
-            counter = 1
-            dim = int(np.sqrt(self.grid_shape[1]))
-            for i in range(0, self.grid_shape[0]):
-                sample = np.reshape(self.grid[i, :], (dim, dim))
-                ax = plot.subplot(1, self.grid_shape[0], counter)
-                ax.set_axis_off()
-                if len(args) > 0 and i == args[0][0]:
-                    plot.imshow(sample, cmap='plasma')
-                else:
-                    plot.imshow(sample, cmap='gray')
-                counter += 1
-        elif self.grid_rank == 2:  # 1D Grid:
-            counter = 1
-            dim = int(np.sqrt(self.grid_shape[2]))
-            for i in range(0, self.grid_shape[0]):
-                for j in range(0, self.grid_shape[1]):
-                    sample = np.reshape(self.grid[i, j, :], (dim, dim))
-                    ax = plot.subplot(self.grid_shape[0], self.grid_shape[1], counter)
-                    ax.set_axis_off()
-                    if len(args) > 0 and i == args[0][0] and j == args[0][1]:
-                        plot.imshow(sample, cmap='plasma')
-                    else:
-                        plot.imshow(sample, cmap='gray')
-                    counter += 1
-        plot.show()
-
     def test(self, dataset):
         """
         Throws a random sample to the map and highlights the neuron that "caught" it.
@@ -344,7 +285,60 @@ class SOM:
         winner_neuron = self.find_winner_neuron(dataset[random_index, :])
         self.plot_grid(winner_neuron)
 
-    def save(self, class_name):
+    def plot_grid(self, *args):
+        """
+        Plots a Grid To The Screen (1D or 2D).
+        If the function is called by the test function it highlights
+        the neuron that "won" the test sample. In that case a tuple
+        with the winning neuron's coordinates is passed to the function as argument.
+        Currently works only for datasets where n_rows = n_columns.
+        ----------
+
+        :param args: A tuple containing the coordinates of the winning neuron.
+        :return: Nothing.
+        """
+        total_neurons = 1
+        for i in range(0, self.grid_rank):
+            total_neurons *= self.grid_shape[i]
+        dim = int(np.sqrt(self.grid_shape[-1]))
+        temp_grid = np.reshape(self.grid, (total_neurons, dim, dim))
+        reference_tuple = (1,) + self.grid_shape[:-1] if self.grid_rank == 1 else self.grid_shape[:-1]
+        step = total_neurons
+        winning_neuron_position = None
+        if len(args) > 0:
+            winning_neuron_position = 0
+            for i in range(0, len(args[0])):
+                step //= self.grid_shape[i]
+                winning_neuron_position += step*args[0][i]
+        for i, neuron in enumerate(temp_grid):
+            ax = plot.subplot(reference_tuple[0], reference_tuple[1], i+1)
+            ax.set_axis_off()
+            if i == winning_neuron_position:
+                plot.imshow(neuron, cmap='plasma')
+            else:
+                plot.imshow(neuron, cmap='gray')
+        plot.show()
+
+    def load_map(self, path):
+        """
+        Loads a pre-trained model. Stops execution if invalid path was provided
+        or the loaded map's shape is not the same as the one defined in the constructor.
+
+        ----------
+
+        :param path:
+            A string containing the path of the pre-trained map.
+        :return: Nothing.
+        """
+        loaded_map = np.load(path + '_' + str(self.grid_rank) + 'D' + '.npy')
+        if self.grid.shape != loaded_map.shape:
+            print('Error: Input map dimensionality is:', loaded_map.shape)
+            print('The shape defined in the constructor is:', self.grid.shape)
+            sys.exit(-1)
+        else:
+            self.grid = loaded_map
+
+    def save_map(self, class_name):
         """
         Saves a map to the disk.
 
@@ -353,4 +347,4 @@ class SOM:
         :param class_name: A string containing the name that the map will be saved as.
         :return: Nothing.
         """
-        np.save(class_name, self.grid)
+        np.save(class_name + '_' + str(self.grid_rank) + 'D', self.grid)

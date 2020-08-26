@@ -9,15 +9,15 @@ def main():
     # Change to false if your dataset contains no labels whatsoever or
     # you want a single map for all your data anyway.
     map_for_each_class = True
-    pre_trained = False
+    pre_trained = True
     if not map_for_each_class:
-        path = 'Kohonen_map'
+        path = 'kohonen_map'
         som = SOM(training_set)
         if pre_trained:
-            som.load_map(path + '.npy')
+            som.load_map(path)
         else:
             som.train(training_set)
-            som.save(path)
+            som.save_map(path)
         som.test(training_set)
     else:
         # Each class of the dataset gets its own SOM
@@ -26,10 +26,11 @@ def main():
             som = SOM(partial_dataset)
             path = str(i)
             if pre_trained:
-                som.load_map(path + '.npy')
+                som.load_map(path)
+                som.save_map(path)
             else:
                 som.train(partial_dataset)
-                som.save(path)
+                som.save_map(path)
             som.test(partial_dataset)
 
 
