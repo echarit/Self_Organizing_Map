@@ -111,10 +111,9 @@ class SOM:
         :param sample: An 1D array containing a single data sample.
         :return: winner_neuron - A tuple containing the coordinates of the winning neuron.
         """
+        distances = np.zeros(self.grid_shape[:-1], dtype='float32')
+        min_distance = 100000
         if self.grid_rank == 1:  # 1D Grid
-            distances = np.zeros((self.grid_shape[0],), dtype='float32')
-            winner = (0,)
-            min_distance = 100000
             for i in range(0, self.grid_shape[0]):
                 temp = self.grid[i] - sample
                 temp = np.dot(temp.T, temp)
@@ -124,9 +123,6 @@ class SOM:
                     winner = (i,)
                     min_distance = distances[winner]
         elif self.grid_rank == 2:  # 2D Grid
-            distances = np.zeros((self.grid_shape[0], self.grid_shape[1]), dtype='float32')
-            winner = (0, 0)
-            min_distance = 100000
             for i in range(0, self.grid_shape[0]):
                 for j in range(0, self.grid_shape[1]):
                     temp = self.grid[i, j] - sample
@@ -136,7 +132,6 @@ class SOM:
                     if distances[i, j] < min_distance:
                         winner = (i, j)
                         min_distance = distances[winner]
-
         else:
             print("Higher dimension grid than 2 is not implemented")
             winner = None
@@ -144,16 +139,16 @@ class SOM:
         return winner
 
     @staticmethod
-    def neighbour_function(winner_neuron, current_neuron):
+    def grid_distance(winner_neuron, current_neuron):
         """
         Defines the neighbour function.
         In other words how much of a neighbour is one neuron with another.
 
         ----------
 
-        :param winner_neuron: An 1D array of the neuron that "won" the current sample.
-        :param current_neuron: An 1D array of a neuron to check similarity with the winner neuron.
-        :return: similarity - A metric about the two neurons.
+        :param winner_neuron: A tuple of the winner neuron's grid coordinates.
+        :param current_neuron: A tuple of the current neuron's grid coordinates.
+        :return: similarity - A metric (real number) of the two neurons.
         """
         winner_neuron = np.asarray(winner_neuron, dtype='float32')
         current_neuron = np.asarray(current_neuron, dtype='float32')
@@ -162,18 +157,18 @@ class SOM:
         return similarity
 
     @staticmethod
-    def neighbourhood_function(neighbour_value, sigma):
+    def neighbourhood_function(grid_distance, sigma):
         """
         Defines The Gaussian Neighbourhood Function. See SOM bibliography for more.
 
         ----------
 
-        :param neighbour_value: The similarity measure between two neurons.
-            See neighbour_function() for more.
+        :param grid_distance: The similarity measure between two neurons.
+            See grid_distance() for more.
         :param sigma: The sigma of the Gaussian similarity as defined in the constructor.
         :return: The neighbourhood function's value for two neurons.
         """
-        return np.exp(-neighbour_value/(2 * sigma * sigma))
+        return np.exp(-0.5 * grid_distance / sigma ** 2)
 
     def alpha_decay(self, n):
         """
@@ -222,13 +217,13 @@ class SOM:
             if self.similarity == 'Gaussian':
                 if self.grid_rank == 1:  # 1D Grid
                     for i in range(0, self.grid_shape[0]):
-                        neighbour_value = self.neighbour_function(winner, (i,))
+                        neighbour_value = self.grid_distance(winner, (i,))
                         neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
                         self.grid[i] += alpha * neighbourhood_value * (sample - self.grid[winner])
                 elif self.grid_rank == 2:  # 2D Grid
                     for i in range(0, self.grid_shape[0]):
                         for j in range(0, self.grid_shape[1]):
-                            neighbour_value = self.neighbour_function(winner, (i, j))
+                            neighbour_value = self.grid_distance(winner, (i, j))
                             neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
                             self.grid[i, j] += alpha * neighbourhood_value * (sample - self.grid[winner])
         elif self.grid_mode == 'simple_chain':
@@ -237,39 +232,39 @@ class SOM:
                 if self.grid_rank == 1:  # 2D Grid
                     # Updating the left neuron
                     if winner[0] - 1 >= 0:  # Checking if it is inside the map
-                        neighbour_value = self.neighbour_function(winner, (winner[0] - 1,))
+                        neighbour_value = self.grid_distance(winner, (winner[0] - 1,))
                         neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
                         self.grid[winner[0] - 1] += \
                             alpha * neighbourhood_value * (sample - self.grid[winner])
                     # Updating The right neuron
                     if winner[0] + 1 < self.grid_shape[0]:  # Checking if it is inside the map
-                        neighbour_value = self.neighbour_function(winner, (winner[0] + 1,))
+                        neighbour_value = self.grid_distance(winner, (winner[0] + 1,))
                         neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
                         self.grid[winner[0] + 1] += \
                             alpha * neighbourhood_value * (sample - self.grid[winner])
                 elif self.grid_rank == 2:  # 2D Grid
                     # Updating the left neuron
                     if winner[0] - 1 >= 0:  # Checking if it is inside the map
-                        neighbour_value = self.neighbour_function(winner, (winner[0] - 1, winner[1]))
+                        neighbour_value = self.grid_distance(winner, (winner[0] - 1, winner[1]))
                         neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
                         self.grid[winner[0] - 1, winner[1]] += \
                             alpha * neighbourhood_value * (sample - self.grid[winner])
                     # Updating the right neuron
                     if winner[0] + 1 < self.grid_shape[0]:  # Checking if it is inside the map
-                        neighbour_value = self.neighbour_function(winner, (winner[0] + 1, winner[1]))
+                        neighbour_value = self.grid_distance(winner, (winner[0] + 1, winner[1]))
                         neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
                         self.grid[winner[0] + 1, winner[1]] += \
                             alpha * neighbourhood_value * (sample - self.grid[winner])
                     # Updating the upper neuron
                     if winner[1] - 1 >= 0:  # Checking if it is inside the map
-                        neighbour_value = self.neighbour_function(winner, (winner[0], winner[1] - 1))
+                        neighbour_value = self.grid_distance(winner, (winner[0], winner[1] - 1))
                         neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
                         self.grid[winner[0], winner[1] - 1] += \
                             alpha * neighbourhood_value * (sample - self.grid[winner])
                     # Updating The Lower Neuron
                     # Checking if it is inside the map
                     if winner[1] + 1 < self.grid_shape[1]:
-                        neighbour_value = self.neighbour_function(winner, (winner[0], winner[1] + 1))
+                        neighbour_value = self.grid_distance(winner, (winner[0], winner[1] + 1))
                         neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
                         self.grid[winner[0], winner[1] + 1] += \
                             alpha * neighbourhood_value * (sample - self.grid[winner])
