@@ -16,7 +16,7 @@ class SOM:
         # The map's shape.
         # First two argumments define dimensionality.
         # If 1D map is needed provide a single number else provide 2 numbers
-        # The last element is the nodes' dimensionality which should be equal to that of the data.
+        # The last element is the nodes' dimensionality which should be equal to the dataset's.
         # ex. (10, data_set.shape[1]) for a 1D map with 10 nodes,
         #     (10, 10, data_set.shape[1]) for a 2D map with 10 * 10 nodes
         self.grid_shape = (7, 7, data_set.shape[1])
@@ -56,7 +56,7 @@ class SOM:
             ----------
 
             :param data_set:
-                An m x n numpy array where m is the number of images and n the dimensionality of the data.
+                An m x n numpy array where m is the number of images and n its dimensionality.
             :return: Nothing.
         """
         if self.init_method == 'random':
@@ -302,7 +302,13 @@ class SOM:
             total_neurons *= self.grid_shape[i]
         dim = int(np.sqrt(self.grid_shape[-1]))
         temp_grid = np.reshape(self.grid, (total_neurons, dim, dim))
-        reference_tuple = (1,) + self.grid_shape[:-1] if self.grid_rank == 1 else self.grid_shape[:-1]
+        if self.grid_rank == 1:
+            reference_tuple = (1,) + self.grid_shape[:-1]
+        elif self.grid_rank == 2:
+            reference_tuple = self.grid_shape[:-1]
+        else:
+            print('Error. 3D or higher gird cannot be plotted.')
+            return
         step = total_neurons
         winning_neuron_position = None
         if len(args) > 0:

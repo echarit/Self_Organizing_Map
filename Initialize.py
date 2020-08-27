@@ -11,13 +11,13 @@ def read_data():
 
     :return:
         data
-            An m x n numpy array where m is the number of images and n the dimensionality of the data.
+            An m x n numpy array where m is the number of samples and n its dimensionality.
         labels
             An 1D array (no singleton dimensions) of length m containing the data's labels.
         pointers
             A list of size k where k is the number of classes the dataset has.
-            The list contains k tuples (a, b) where a and b are indexes where the k-th class samples
-            start end end respectively in the data matrix.
+            The list contains k tuples (a, b) where a and b are indexes
+            where the k-th class samples start end end respectively in the data matrix.
             See sort_dataset() to see how pointers is created.
         num_of_classes
             The number of classes the dataset has.
@@ -43,19 +43,19 @@ def sort_dataset(dataset, labels):
     ----------
 
     :param dataset:
-        An m x n numpy array where m is the number of images and n the dimensionality of the data.
+        An m x n numpy array where m is the number of images and n its dimensionality.
     :param labels:
         An 1D array (no singleton dimensions) of length m containing the data's labels.
 
     :return:
         data
-            An m x n numpy array where m is the number of images and n the dimensionality of the data.
+            An m x n numpy array where m is the number of images and n its dimensionality.
         labels
             An 1D array (no singleton dimensions) of length m containing the data's labels.
         indexes
             A list of size k where k is the number of classes the dataset has.
-            The list contains k tuples (a, b) where a and b are indexes where the k-th class samples
-            start end end respectively in the data matrix.
+            The list contains k tuples (a, b) where a and b are indexes
+            where the k-th class samples start end end respectively in the data matrix.
     """
     classes = int(np.amax(labels)) + 1
     data_dimension = dataset.shape[1]
@@ -63,12 +63,11 @@ def sort_dataset(dataset, labels):
     class_elements = np.zeros((classes,), dtype='int32', order='F')
     counters = np.zeros((classes,), dtype='int32', order='F')
     data_sorted = []
-    # Creating a list with n matrices where n is the number of total classes
-    for i in range(0, classes, 1):
+
+    for i in range(0, classes, 1):  # Creating a list with n matrices, one for each class
         class_elements[i] = np.sum(labels == i)
         data_sorted.append(np.zeros((class_elements[i], data_dimension), dtype='float32', order='F'))
-    # Adding a sample to the matrix it belongs
-    for i in range(0, numel, 1):
+    for i in range(0, numel, 1):  # Adding a sample to the matrix it belongs
         data_sorted[labels[i]][counters[labels[i]]][:] = dataset[i][:]
         counters[labels[i]] += 1
     k = 0
@@ -79,8 +78,7 @@ def sort_dataset(dataset, labels):
             k += 1
     indexes = [(0, counters[0])]
     for i in range(1, classes, 1):
-        indexes.append((0, 0))
-        indexes[i] = (indexes[i-1][1], indexes[i-1][1] + counters[i])
+        indexes.append((indexes[i-1][1], indexes[i-1][1] + counters[i]))
 
     return dataset, labels, indexes
 
@@ -92,7 +90,7 @@ def shuffle_data(data, labels):
     ----------
 
     :param data:
-        An m x n numpy array where m is the number of images and n the dimensionality of the data.
+        An m x n numpy array where m is the number of images and n its dimensionality.
     :param labels:
         An 1D array (no singleton dimensions) of length m containing the data's labels.
 
