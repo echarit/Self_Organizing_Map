@@ -24,22 +24,15 @@ def read_data():
     """
     path = 'mnist-original.mat'
     print('Reading', path)
-
     dictionary = loadmat(path)
     data = dictionary['data']
     data_labels = dictionary['label']
 
     data = data.T
     data = data / 255
-
     data_labels = np.asarray(data_labels, dtype='int32')
     data_labels = np.squeeze(data_labels)
-
-    indexes = None
-    data, data_labels, indexes = sort_dataset(data, data_labels)
-    # data, data_labels = shuffle_data(data, data_labels)
-    number_of_classes = int(np.amax(data_labels)) + 1
-    return data, data_labels, indexes, number_of_classes
+    return data, data_labels
 
 
 def sort_dataset(dataset, labels):
@@ -67,31 +60,24 @@ def sort_dataset(dataset, labels):
     classes = int(np.amax(labels)) + 1
     data_dimension = dataset.shape[1]
     numel = dataset.shape[0]
-
     class_elements = np.zeros((classes,), dtype='int32', order='F')
     counters = np.zeros((classes,), dtype='int32', order='F')
     data_sorted = []
-
     # Creating a list with n matrices where n is the number of total classes
     for i in range(0, classes, 1):
         class_elements[i] = np.sum(labels == i)
         data_sorted.append(np.zeros((class_elements[i], data_dimension), dtype='float32', order='F'))
-
     # Adding a sample to the matrix it belongs
     for i in range(0, numel, 1):
         data_sorted[labels[i]][counters[labels[i]]][:] = dataset[i][:]
         counters[labels[i]] += 1
-
     k = 0
     for i in range(0, classes, 1):
         for j in range(0, counters[i], 1):
             dataset[k, :] = data_sorted[i][j][:]
             labels[k] = i
             k += 1
-
-    indexes = []
-    indexes.append((0, 0))
-    indexes[0] = (0, counters[0])
+    indexes = [(0, counters[0])]
     for i in range(1, classes, 1):
         indexes.append((0, 0))
         indexes[i] = (indexes[i-1][1], indexes[i-1][1] + counters[i])
@@ -144,6 +130,5 @@ def plot_sample(sample):
 
 
 if __name__ == '__main__':
-    data, labels, pointers, num_of_classes = read_data()
-    print(pointers)
+    data, labels = read_data()
     plot_sample(data[15100, :])
