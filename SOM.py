@@ -2,7 +2,6 @@ import sys
 import numpy as np
 import numpy.random as rng
 import matplotlib.pyplot as plot
-import random
 import time
 
 
@@ -40,7 +39,7 @@ class SOM:
         # The learning rate
         self.alpha = 0.01
         # The number of epochs the network is gonna be trained into
-        self.epochs = 1
+        self.epochs = 100
         # The radius of the Gaussian neighbourhood function
         if self.similarity == 'Gaussian':
             self.sigma = int(data_set.shape[1] / 10)
@@ -49,9 +48,13 @@ class SOM:
 
     def initialize_grid(self, data_set):
         """
-            Initializes the map depending on the initialization method (And the grid's rank).
-            Stops executution if an invalid initialization method
-            or grid shape were provided in the constructor.
+            Initializes the map depending on the initialization method.
+            'random' Draws random vectors from a multivariate Gaussian distribution
+            with the mean sample of the dataset as the mean vector and
+            a scaled Identity matrix as the covariance matrix.
+            'sampling' draws n random samples from the dataset (without replacement)
+            and assigns them to to the map's neurons.
+            Stops execution if an invalid initialization method was provided in the constructor.
 
             ----------
 
@@ -62,21 +65,10 @@ class SOM:
         if self.init_method == 'random':
             mean_vector = np.mean(data_set, axis=0)
             covariance_matrix = 0.001 * np.eye(self.grid_shape[-1])
-            self.grid = np.random.multivariate_normal(mean_vector, covariance_matrix, self.grid_shape[:-1])
+            self.grid = rng.multivariate_normal(mean_vector, covariance_matrix, self.grid_shape[:-1])
         elif self.init_method == 'sampling':
-            if self.grid_rank == 1:  # 1D Grid
-                for i in range(0, self.grid_shape[0], 1):
-                    index = rng.random_integers(0, data_set.shape[0] - 1)
-                    self.grid[i] = data_set[index, :]
-            elif self.grid_rank == 2:  # 2D Grid
-                for i in range(0, self.grid_shape[0], 1):
-                    for j in range(0, self.grid_shape[1], 1):
-                        index = rng.random_integers(0, data_set.shape[0] - 1)
-                        # Add a coma and : in self.grid[i, j] in case something goes wrong
-                        self.grid[i, j] = data_set[index, :]
-            else:
-                print('Invalid Map Shape. Please Check If Your Map is 1D or 2D Only')
-                sys.exit(-1)
+            indexes = tuple(rng.choice(data_set.shape[0], self.grid_shape[:-1], False))
+            self.grid = np.reshape(data_set[indexes, :], self.grid_shape)
         else:
             print('Invalid Initialization Method. Please Check Argument "init" in architecture list')
             sys.exit(-1)
@@ -84,38 +76,21 @@ class SOM:
     def find_winner_neuron(self, sample):
         """
         Given a data instance, determines which neuron "wins" the sample
-        and returns it's position within the map.
+        and returns it's position within the map as a tuple.
 
         ----------
 
         :param sample: An 1D array containing a single data sample.
         :return: winner_neuron - A tuple containing the coordinates of the winning neuron.
         """
-        distances = np.zeros(self.grid_shape[:-1], dtype='float32')
-        min_distance = 100000
-        if self.grid_rank == 1:  # 1D Grid
-            for i in range(0, self.grid_shape[0]):
-                temp = self.grid[i] - sample
-                temp = np.dot(temp.T, temp)
-                temp = np.sqrt(temp)
-                distances[i] = temp
-                if distances[i] < min_distance:
-                    winner = (i,)
-                    min_distance = distances[winner]
-        elif self.grid_rank == 2:  # 2D Grid
-            for i in range(0, self.grid_shape[0]):
-                for j in range(0, self.grid_shape[1]):
-                    temp = self.grid[i, j] - sample
-                    temp = np.dot(temp.T, temp)
-                    temp = np.sqrt(temp)
-                    distances[i, j] = temp
-                    if distances[i, j] < min_distance:
-                        winner = (i, j)
-                        min_distance = distances[winner]
+        if self.grid_rank < 3:
+            distances = np.linalg.norm(self.grid - sample, axis=self.grid_rank)
+            # Converts single integer indexing to multidimensional indexing
+            # (ex. 10 --> (0, 2) for a 7 x 7 grid
+            winner = np.unravel_index(np.argmin(distances), distances.shape)
         else:
             print("Higher dimension grid than 2 is not implemented")
             winner = None
-
         return winner
 
     @staticmethod
@@ -132,8 +107,7 @@ class SOM:
         """
         winner_neuron = np.asarray(winner_neuron, dtype='float32')
         current_neuron = np.asarray(current_neuron, dtype='float32')
-        temp = winner_neuron - current_neuron
-        similarity = np.dot(temp.T, temp)
+        similarity = np.linalg.norm(winner_neuron - current_neuron)
         return similarity
 
     @staticmethod
@@ -254,6 +228,7 @@ class SOM:
         Trains the map iterating over the dataset for each epoch.
         Plots the Self-Organizing Map one time before training
         and one time after training.
+
         ----------
 
         :param training_set: An m x n numpy array where
@@ -270,7 +245,7 @@ class SOM:
                 self.feed_sample(training_set[j, :], new_alpha, new_sigma)
         self.plot_grid()
         stop = time.clock()
-        print('Testing Time:', (stop - start) / 60, 'minutes')
+        print('Training Time:', (stop - start) / 60, 'minutes')
 
     def test(self, dataset):
         """
@@ -281,7 +256,7 @@ class SOM:
         :param dataset: The dataset from which the test sample will be randomly selected.
         :return: Nothing.
         """
-        random_index = random.randrange(0, dataset.shape[0])
+        random_index = rng.choice(dataset.shape[0])
         winner_neuron = self.find_winner_neuron(dataset[random_index, :])
         self.plot_grid(winner_neuron)
 
@@ -313,7 +288,7 @@ class SOM:
         winning_neuron_position = None
         if len(args) > 0:
             winning_neuron_position = 0
-            for i in range(0, len(args[0])):
+            for i in range(0, len(args[0])):  # Conversion from 2D indexing (i, j) to 1D.
                 step //= self.grid_shape[i]
                 winning_neuron_position += step*args[0][i]
         for i, neuron in enumerate(temp_grid):
