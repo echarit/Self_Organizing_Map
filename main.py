@@ -28,7 +28,6 @@ def main():
             path = str(i)
             if pre_trained:
                 som.load_map(path)
-                som.save_map(path)
             else:
                 som.train(partial_dataset)
                 som.save_map(path)

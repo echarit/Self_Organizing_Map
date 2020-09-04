@@ -118,8 +118,8 @@ def plot_sample(sample):
 
     :return: Nothing.
     """
-    dim = int(np.sqrt(sample.shape))
-    sample = sample.reshape((dim, dim))
+    dim = (int(sample.shape[-1] ** 0.5), int(sample.shape[-1] ** 0.5))
+    sample = sample.reshape(dim)
     fig, ax = plot.subplots()
     image = plot.imshow(sample, cmap='gray')
     fig.colorbar(image, ax=ax)

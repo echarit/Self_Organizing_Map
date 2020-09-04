@@ -15,59 +15,77 @@ class SOM:
         # The map's shape.
         # First two arguments define dimensionality.
         # If 1D map is needed provide a single number else provide 2 numbers
-        # The last element is the nodes' dimensionality which should be equal to the dataset's.
+        # The last element is the nodes' dimensionality which should be equal to the data set's.
         # ex. (10, data_set.shape[1]) for a 1D map with 10 nodes,
         #     (10, 10, data_set.shape[1]) for a 2D map with 10 * 10 nodes
-        self.grid_shape = (7, 7, data_set.shape[1])
+        self._grid_shape = (8, 8, data_set.shape[1])
+        # The total number of the map's neurons.
+        self._total_neurons = int(np.prod(self._grid_shape[:-1]))
+        # If the data is grayscale images this field defines it's height and width for plotting.
+        self._plot_shape = (int(self._grid_shape[-1] ** 0.5), int(self._grid_shape[-1] ** 0.5))
         # The map's initialization method.
         # 'sampling': Draws random instances from the data to initialize the map
         # 'random': Initializes the map with samples from a multivariate Gaussian PDF.
-        self.init_method = 'random'
-        # An ad-hoc modification of the neighbourhood function.
-        # 'cross' means that topologically only the upper, lower, right and left
-        #  neighbour of the winning neuron will receive updates regardless
-        #  of their neighbourhood function value.
-        # 'full_grid: Everyone is neighbour with everyone
-        # thus receiving updates proportionally to the neighbourhood function
-        self.grid_mode = 'full_grid'
-        # The actual map
-        self.grid = np.zeros(self.grid_shape, dtype='float32')
-        # The maps's rank (1D or 2D)
-        self.grid_rank = len(self.grid_shape) - 1
-        # The learning rate
-        self.alpha = 0.01
+        self._init_method = 'random'
+        # The maps's rank (1D or 2D).
+        self._grid_rank = len(self._grid_shape) - 1
+        # The learning rate.
+        self._alpha = 0.01
+        self._alpha_constant = 100
         # The radius of the Gaussian neighbourhood function. Fine-tuned initialization.
-        self.sigma = int(data_set.shape[1] / 10)
-        # The number of epochs the network is gonna be trained into
-        self.epochs = 100
-        self.initialize_grid(data_set)
+        self._sigma = int(data_set.shape[1] / 10)
+        self._sigma_constant = 100
+        # The number of epochs the network is gonna be trained into.
+        self._epochs = 200
+        # The actual map
+        self._grid = self.initialize_grid(data_set)
+        # A 2D array containing the neuron's pairwise distances upon the multidimensional grid.
+        self._grid_distances = self.initialize_grid_distances()
 
     def initialize_grid(self, data_set):
         """
             Initializes the map depending on the initialization method.
             'random' Draws random vectors from a multivariate Gaussian distribution
-            with the mean sample of the dataset as the mean vector and
+            with the mean sample of the data set's as the mean vector and
             a scaled Identity matrix as the covariance matrix.
-            'sampling' draws n random samples from the dataset (without replacement)
+            'sampling' draws n random samples from the data set's (without replacement)
             and assigns them to to the map's neurons.
             Stops execution if an invalid initialization method was provided in the constructor.
 
             ----------
 
             :param data_set:
-                An m x n numpy array where m is the number of images and n its dimensionality.
-            :return: Nothing.
+                An m x n numpy array where m is the number of samples and n its dimensionality.
+            :return: An m x n numpy array with the initialized grid.
         """
-        if self.init_method == 'random':
+        if self._init_method == 'random':
             mean_vector = np.mean(data_set, axis=0)
-            covariance_matrix = 0.001 * np.eye(self.grid_shape[-1])
-            self.grid = rng.multivariate_normal(mean_vector, covariance_matrix, self.grid_shape[:-1])
-        elif self.init_method == 'sampling':
-            indexes = tuple(rng.choice(data_set.shape[0], self.grid_shape[:-1], False))
-            self.grid = np.reshape(data_set[indexes, :], self.grid_shape)
+            covariance_matrix = 0.001 * np.eye(self._grid_shape[-1])
+            return rng.multivariate_normal(mean_vector, covariance_matrix, self._total_neurons)
+        elif self._init_method == 'sampling':
+            indexes = tuple(rng.choice(data_set.shape[0], self._total_neurons, False))
+            return data_set[indexes, :]
         else:
-            print('Invalid Initialization Method. Please Check Argument "init" in architecture list')
+            print('Invalid Initialization Method.')
+            print('Please Check Argument "init" in architecture list')
             sys.exit(-1)
+
+    def initialize_grid_distances(self):
+        """
+            Computes the distance between two neurons (x, y) in grid coordinates
+            for each pair of neurons in the map's grid.
+
+            ----------
+
+            :return: An m x m numpy array containing the neuron's pairwise grid distances.
+        """
+        grid_coordinates = np.zeros((self._total_neurons, self._total_neurons))
+        for i in range(0, self._total_neurons):
+            index_1 = np.asarray(np.unravel_index(i, self._grid_shape[:-1]))
+            for j in range(0, self._total_neurons):
+                index_2 = np.asarray(np.unravel_index(j, self._grid_shape[:-1]))
+                grid_coordinates[i, j] = np.linalg.norm(index_1 - index_2)
+        return grid_coordinates
 
     def find_winner_neuron(self, sample):
         """
@@ -77,34 +95,12 @@ class SOM:
         ----------
 
         :param sample: An 1D array containing a single data sample.
-        :return: winner_neuron - A tuple containing the coordinates of the winning neuron.
+        :return: winner_neuron - A tuple of size 1 containing the position
+                 of the winning neuron (single number indexing)
         """
-        if self.grid_rank < 3:
-            distances = np.linalg.norm(self.grid - sample, axis=self.grid_rank)
-            # Converts single integer indexing to multidimensional indexing
-            # (ex. 10 --> (0, 2) for a 7 x 7 grid
-            winner = np.unravel_index(np.argmin(distances), distances.shape)
-        else:
-            print("Higher dimension grid than 2 is not implemented")
-            winner = None
+        distances = np.linalg.norm(self._grid - sample, axis=1)
+        winner = np.unravel_index(np.argmin(distances), distances.shape)
         return winner
-
-    @staticmethod
-    def grid_distance(winner_neuron, current_neuron):
-        """
-        Defines the neighbour function.
-        In other words how much of a neighbour is one neuron with another.
-
-        ----------
-
-        :param winner_neuron: A tuple of the winner neuron's grid coordinates.
-        :param current_neuron: A tuple of the current neuron's grid coordinates.
-        :return: similarity - A metric (real number) of the two neurons.
-        """
-        winner_neuron = np.asarray(winner_neuron, dtype='float32')
-        current_neuron = np.asarray(current_neuron, dtype='float32')
-        similarity = np.linalg.norm(winner_neuron - current_neuron)
-        return similarity
 
     @staticmethod
     def neighbourhood_function(grid_distance, sigma):
@@ -131,9 +127,7 @@ class SOM:
         :param n: The current epoch (also known as discrete time).
         :return: The a_n as decayed by time/epoch.
         """
-        # Arbitrarily chosen constant
-        constant = 100
-        return self.alpha * np.exp(- 2 * n / constant)
+        return self._alpha * np.exp(- 2 * n / self._alpha_constant)
 
     def sigma_decay(self, n):
         """
@@ -146,9 +140,7 @@ class SOM:
         :param n: The current epoch (also known as discrete time).
         :return: The s_n as decayed by time/epoch.
         """
-        # Arbitrarily chosen constant
-        constant = 100
-        return self.sigma * np.exp(-n * np.log(self.sigma) / constant)
+        return self._sigma * np.exp(-n * np.log(self._sigma) / self._sigma_constant)
 
     def feed_sample(self, sample, alpha, sigma):
         """
@@ -163,38 +155,13 @@ class SOM:
         :return: Nothing.
         """
         winner = self.find_winner_neuron(sample)
-        temp = sample - self.grid[winner]
-        if self.grid_mode == 'full_grid':
-            if self.grid_rank == 1:  # 1D Grid
-                for i in range(0, self.grid_shape[0]):
-                    neighbour_value = self.grid_distance(winner, (i,))
-                    neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
-                    self.grid[i] += alpha * neighbourhood_value * temp
-            elif self.grid_rank == 2:  # 2D Grid
-                for i in range(0, self.grid_shape[0]):
-                    for j in range(0, self.grid_shape[1]):
-                        neighbour_value = self.grid_distance(winner, (i, j))
-                        neighbourhood_value = self.neighbourhood_function(neighbour_value, sigma)
-                        self.grid[i, j] += alpha * neighbourhood_value * temp
-        elif self.grid_mode == 'cross':
-            self.grid[winner] += alpha * temp
-            # The grid distance for these neighbour neurons is always equal to 1!
-            neighbourhood_value = self.neighbourhood_function(1, sigma)
-            for i in range(0, self.grid_rank):
-                if winner[i] - 1 >= 0:
-                    neighbour = list(winner)
-                    neighbour[i] -= 1
-                    neighbour = tuple(neighbour)
-                    self.grid[neighbour] += alpha * neighbourhood_value * temp
-                if winner[i] + 1 < self.grid_shape[0]:
-                    neighbour = list(winner)
-                    neighbour[i] += 1
-                    neighbour = tuple(neighbour)
-                    self.grid[neighbour] += alpha * neighbourhood_value * temp
+        neighbour_values = self._grid_distances[winner, :]
+        neighbour_values = self.neighbourhood_function(neighbour_values, sigma)
+        self._grid += alpha * np.multiply(neighbour_values.T, sample - self._grid[winner, :])
 
     def train(self, training_set):
         """
-        Trains the map iterating over the dataset for each epoch.
+        Trains the map iterating over the data set for each epoch.
         Plots the Self-Organizing Map one time before training
         and one time after training.
 
@@ -207,14 +174,14 @@ class SOM:
         self.plot_grid()
         print('\nStarted Training Map! Please Wait...')
         start = time.clock()
-        for i in range(0, self.epochs, 1):  # Iterating over the epochs
+        for i in range(0, self._epochs, 1):
             new_alpha = self.alpha_decay(i)
             new_sigma = self.sigma_decay(i)
-            for j in range(0, training_set.shape[0], 1):  # Iterating over the dataset
+            for j in range(0, training_set.shape[0], 1):
                 self.feed_sample(training_set[j, :], new_alpha, new_sigma)
-        self.plot_grid()
         stop = time.clock()
         print('Training Time:', (stop - start) / 60, 'minutes')
+        self.plot_grid()
 
     def test(self, dataset):
         """
@@ -235,35 +202,27 @@ class SOM:
         If the function is called by the test function it highlights
         the neuron that "won" the test sample. In that case a tuple
         with the winning neuron's coordinates is passed to the function as argument.
-        Currently works only for datasets where n_rows = n_columns.
+        Currently works only for data set's where n_rows = n_columns.
         ----------
 
         :param args: A tuple containing the coordinates of the winning neuron.
         :return: Nothing.
         """
-        total_neurons = 1
-        for i in range(0, self.grid_rank):
-            total_neurons *= self.grid_shape[i]
-        dim = int(np.sqrt(self.grid_shape[-1]))
-        temp_grid = np.reshape(self.grid, (total_neurons, dim, dim))
-        if self.grid_rank == 1:
-            reference_tuple = (1,) + self.grid_shape[:-1]
-        elif self.grid_rank == 2:
-            reference_tuple = self.grid_shape[:-1]
+        if self._grid_rank == 1:
+            reference_tuple = (1,) + self._grid_shape[:-1]
+        elif self._grid_rank == 2:
+            reference_tuple = self._grid_shape[:-1]
         else:
             print('Error. 3D or higher gird cannot be plotted.')
             return
-        step = total_neurons
-        winning_neuron_position = None
+        winning_neuron = None
         if len(args) > 0:
-            winning_neuron_position = 0
-            for i in range(0, len(args[0])):  # Conversion from 2D indexing (i, j) to 1D.
-                step //= self.grid_shape[i]
-                winning_neuron_position += step*args[0][i]
-        for i, neuron in enumerate(temp_grid):
+            winning_neuron = args[0][0]
+        for i in range(0, self._total_neurons):
             ax = plot.subplot(reference_tuple[0], reference_tuple[1], i+1)
             ax.set_axis_off()
-            if i == winning_neuron_position:
+            neuron = np.reshape(self._grid[i, :], self._plot_shape)
+            if i == winning_neuron:
                 plot.imshow(neuron, cmap='plasma')
             else:
                 plot.imshow(neuron, cmap='gray')
@@ -280,13 +239,13 @@ class SOM:
             A string containing the path of the pre-trained map.
         :return: Nothing.
         """
-        loaded_map = np.load(path + '_' + str(self.grid_rank) + 'D' + '.npy')
-        if self.grid.shape != loaded_map.shape:
-            print('Error: Input map dimensionality is:', loaded_map.shape)
-            print('The shape defined in the constructor is:', self.grid.shape)
-            sys.exit(-1)
+        loaded_map = np.load(path + '_' + str(self._grid_rank) + 'D' + '.npy')
+        if loaded_map.shape[0] == self._total_neurons:
+            self._grid = loaded_map
         else:
-            self.grid = loaded_map
+            print('Error! Loaded map shape = ', loaded_map.shape)
+            print('does not match the one defined in the constructor:', self._grid.shape)
+            sys.exit(-1)
 
     def save_map(self, class_name):
         """
@@ -297,4 +256,4 @@ class SOM:
         :param class_name: A string containing the name that the map will be saved as.
         :return: Nothing.
         """
-        np.save(class_name + '_' + str(self.grid_rank) + 'D', self.grid)
+        np.save(class_name + '_' + str(self._grid_rank) + 'D', self._grid)
