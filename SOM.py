@@ -11,7 +11,7 @@ class SOM:
     Specifically Kohonen's variation.
     """
     def __init__(self, data_set):
-        """The class'es constructor."""
+        """The class's constructor."""
         # The map's shape.
         # First two arguments define dimensionality.
         # If 1D map is needed provide a single number else provide 2 numbers
@@ -27,7 +27,7 @@ class SOM:
         # 'sampling': Draws random instances from the data to initialize the map
         # 'random': Initializes the map with samples from a multivariate Gaussian PDF.
         self._init_method = 'random'
-        # The maps's rank (1D or 2D).
+        # The map's rank (1D or 2D).
         self._grid_rank = len(self._grid_shape) - 1
         # The learning rate.
         self._alpha = 0.01
@@ -155,9 +155,10 @@ class SOM:
         :return: Nothing.
         """
         winner = self.find_winner_neuron(sample)
-        neighbour_values = self._grid_distances[winner, :]
-        neighbour_values = self.neighbourhood_function(neighbour_values, sigma)
+        winner_grid_distances = self._grid_distances[winner, :]
+        neighbour_values = self.neighbourhood_function(winner_grid_distances, sigma)
         self._grid += alpha * np.multiply(neighbour_values.T, sample - self._grid[winner, :])
+        return
 
     def train(self, training_set):
         """
@@ -182,6 +183,7 @@ class SOM:
         stop = time.clock()
         print('Training Time:', (stop - start) / 60, 'minutes')
         self.plot_grid()
+        return
 
     def test(self, dataset):
         """
@@ -195,6 +197,7 @@ class SOM:
         random_index = rng.choice(dataset.shape[0])
         winner_neuron = self.find_winner_neuron(dataset[random_index, :])
         self.plot_grid(winner_neuron)
+        return
 
     def plot_grid(self, *args):
         """
@@ -227,6 +230,7 @@ class SOM:
             else:
                 plot.imshow(neuron, cmap='gray')
         plot.show()
+        return
 
     def load_map(self, path):
         """
@@ -246,6 +250,7 @@ class SOM:
             print('Error! Loaded map shape = ', loaded_map.shape)
             print('does not match the one defined in the constructor:', self._grid.shape)
             sys.exit(-1)
+        return
 
     def save_map(self, class_name):
         """
@@ -257,3 +262,4 @@ class SOM:
         :return: Nothing.
         """
         np.save(class_name + '_' + str(self._grid_rank) + 'D', self._grid)
+        return
