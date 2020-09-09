@@ -31,4 +31,4 @@ def main(map_for_each_class, pre_trained):
 
 
 if __name__ == '__main__':
-    main(map_for_each_class=True, pre_trained=False)
+    main(map_for_each_class=False, pre_trained=False)
