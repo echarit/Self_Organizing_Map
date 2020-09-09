@@ -116,7 +116,7 @@ class SOM:
         """
         return np.exp(-0.5 * grid_distance / sigma ** 2)
 
-    def alpha_decay(self, n):
+    def update_alpha(self, n):
         """
         Decaying the learning rate in conjunction with
         the current epoch and the total number of epochs.
@@ -129,7 +129,7 @@ class SOM:
         """
         return self._alpha * np.exp(- 2 * n / self._alpha_constant)
 
-    def sigma_decay(self, n):
+    def update_sigma(self, n):
         """
         Decaying the sigma of the neighbourhood function
         in conjunction with the current epoch and the total number of epochs.
@@ -176,8 +176,8 @@ class SOM:
         print('\nStarted Training Map! Please Wait...')
         start = time.clock()
         for i in range(0, self._epochs, 1):
-            new_alpha = self.alpha_decay(i)
-            new_sigma = self.sigma_decay(i)
+            new_alpha = self.update_alpha(i)
+            new_sigma = self.update_sigma(i)
             for j in range(0, training_set.shape[0], 1):
                 self.feed_sample(training_set[j, :], new_alpha, new_sigma)
         stop = time.clock()
