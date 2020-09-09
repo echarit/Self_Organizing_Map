@@ -18,7 +18,7 @@ class SOM:
         # The last element is the nodes' dimensionality which should be equal to the data set's.
         # ex. (10, data_set.shape[1]) for a 1D map with 10 nodes,
         #     (10, 10, data_set.shape[1]) for a 2D map with 10 * 10 nodes
-        self._grid_shape = (8, 8, data_set.shape[1])
+        self._grid_shape = (10, 10, data_set.shape[1])
         # The total number of the map's neurons.
         self._total_neurons = int(np.prod(self._grid_shape[:-1]))
         # If the data is grayscale images this field defines it's height and width for plotting.
@@ -29,14 +29,14 @@ class SOM:
         self._init_method = 'random'
         # The map's rank (1D or 2D).
         self._grid_rank = len(self._grid_shape) - 1
+        # The number of epochs the network is gonna be trained into.
+        self._epochs = 300
         # The learning rate.
         self._alpha = 0.01
-        self._alpha_constant = 100
+        self._alpha_constant = self._epochs / 3
         # The radius of the Gaussian neighbourhood function. Fine-tuned initialization.
         self._sigma = int(data_set.shape[1] / 10)
-        self._sigma_constant = 100
-        # The number of epochs the network is gonna be trained into.
-        self._epochs = 200
+        self._sigma_constant = self._epochs / 3
         # The actual map
         self._grid = self.initialize_grid(data_set)
         # A 2D array containing the neuron's pairwise distances upon the multidimensional grid.
