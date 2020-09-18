@@ -30,13 +30,13 @@ class SOM:
         # The map's rank (1D or 2D).
         self._grid_rank = len(self._grid_shape) - 1
         # The number of epochs the network is gonna be trained into.
-        self._epochs = 300
+        self._epochs = 200
         # The learning rate.
         self._alpha = 0.01
-        self._alpha_constant = self._epochs / 3
+        self._alpha_constant = self._epochs / 2
         # The radius of the Gaussian neighbourhood function. Fine-tuned initialization.
         self._sigma = int(data_set.shape[1] / 10)
-        self._sigma_constant = self._epochs / 3
+        self._sigma_constant = self._epochs / 2
         # The actual map
         self._grid = self.initialize_grid(data_set)
         # A 2D array containing the neuron's pairwise distances upon the multidimensional grid.
@@ -114,7 +114,7 @@ class SOM:
         :param sigma: The sigma of the Gaussian similarity as defined in the constructor.
         :return: The neighbourhood function's value for two neurons.
         """
-        return np.exp(-0.5 * grid_distance / sigma ** 2)
+        return np.squeeze(np.exp(-0.5 * grid_distance / sigma ** 2))
 
     def update_alpha(self, n):
         """
@@ -157,7 +157,7 @@ class SOM:
         winner = self.find_winner_neuron(sample)
         winner_grid_distances = self._grid_distances[winner, :]
         neighbour_values = self.neighbourhood_function(winner_grid_distances, sigma)
-        self._grid += alpha * np.multiply(neighbour_values.T, sample - self._grid[winner, :])
+        self._grid -= (self._grid - sample) * neighbour_values[:, None] * alpha
         return
 
     def train(self, training_set):
