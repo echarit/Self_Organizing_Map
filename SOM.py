@@ -114,7 +114,7 @@ class SOM:
         :param sigma: The sigma of the Gaussian similarity as defined in the constructor.
         :return: The neighbourhood function's value for two neurons.
         """
-        return np.squeeze(np.exp(-0.5 * grid_distance / sigma ** 2))
+        return np.exp(-0.5 * grid_distance / sigma ** 2)
 
     def update_alpha(self, n):
         """
@@ -155,7 +155,7 @@ class SOM:
         :return: Nothing.
         """
         winner = self.find_winner_neuron(sample)
-        winner_grid_distances = self._grid_distances[winner, :]
+        winner_grid_distances = np.squeeze(self._grid_distances[winner, :])
         neighbour_values = self.neighbourhood_function(winner_grid_distances, sigma)
         self._grid -= (self._grid - sample) * neighbour_values[:, None] * alpha
         return
